@@ -1,6 +1,9 @@
 use nalgebra_glm as glm;
 
-use crate::{gfx::Vert2D, math::Transform};
+use crate::{
+    gfx::{self, Vert2D},
+    math::Transform,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct Quad {
@@ -10,24 +13,35 @@ pub struct Quad {
     pub z_index: i32,
 }
 
-// impl Quad {
-//     pub fn as_verts(&self) -> [Vert2D; 4] {
-//         let hh = self.size.y * 0.5;
-//         let hl = self.size.x * 0.5;
-//
-//         let top_left = [self.origin.x - hl, self.origin.y - hh, 0.];
-//         let top_right = [self.origin.x + hl, self.origin.y - hh, 0.];
-//         let bottom_right = [self.origin.x + hl, self.origin.y + hh, 0.];
-//         let bottom_left = [self.origin.x - hl, self.origin.y + hh, 0.];
-//
-//         [
-//             Vert2D { pos: top_left }, // Vert2D::new(&top_left, &[0., 0.]),
-//                                       // Vert2D::new(&top_right, &[1., 0.]),
-//                                       // Vert2D::new(&bottom_right, &[1., 1.]),
-//                                       // Vert2D::new(&bottom_left, &[0., 1.]),
-//         ]
-//     }
-// }
+impl Quad {
+    pub const VERTS: [Vert2D; 4] = [
+        Vert2D {
+            pos: [-1., -1., 0., 0.],
+            color: gfx::Color::WHITE_RAW,
+            uv: [0., 1.],
+        },
+        Vert2D {
+            pos: [1., -1., 0., 0.],
+            color: gfx::Color::WHITE_RAW,
+            uv: [1., 1.],
+        },
+        Vert2D {
+            pos: [1., 1., 0., 0.],
+            color: gfx::Color::WHITE_RAW,
+            uv: [1., 0.],
+        },
+        Vert2D {
+            pos: [-1., 1., 0., 0.],
+            color: gfx::Color::WHITE_RAW,
+            uv: [0., 0.],
+        },
+    ];
+
+    /// Calculates/Applies self.xform and self.color to Quad verts
+    pub fn calc_into_verts(&self) -> [Vert2D; 4] {
+        todo!()
+    }
+}
 //
 // #[derive(Debug, Clone)]
 // pub struct QuadBuffer {
