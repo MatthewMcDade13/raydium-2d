@@ -1,6 +1,7 @@
 mod geom;
 mod gfx;
 mod math;
+mod raycast;
 mod render;
 mod shader;
 
@@ -12,7 +13,6 @@ use sdl2::keyboard::Keycode;
 
 fn main() -> anyhow::Result<()> {
     // Show logs from wgpu
-    env_logger::init();
 
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
@@ -24,19 +24,17 @@ fn main() -> anyhow::Result<()> {
         .build()?;
     let (width, height) = window.size();
 
-    let mut r = smol::block_on(QuadRenderer::new(window))?;
-
     let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
-                Event::Window {
-                    window_id,
-                    win_event: WindowEvent::SizeChanged(width, height),
-                    ..
-                } if r.has_window(window_id) => {
-                    r.resize(width as u32, height as u32);
-                }
+                // Event::Window {
+                //     window_id,
+                //     win_event: WindowEvent::SizeChanged(width, height),
+                //     ..
+                // } if r.has_window(window_id) => {
+                //     r.resize(width as u32, height as u32);
+                // }
                 Event::Quit { .. }
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),

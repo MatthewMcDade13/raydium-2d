@@ -20,6 +20,7 @@ pub struct QuadRenderer {
 
 impl QuadRenderer {
     pub async fn new(window: Window) -> anyhow::Result<Self> {
+        env_logger::init();
         let (width, height) = window.size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {

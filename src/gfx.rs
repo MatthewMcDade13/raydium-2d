@@ -13,7 +13,7 @@ impl Vert2D {
         Self::default()
     }
 
-    pub const fn with_pos(pos: glm::Vec2) -> Self {
+    pub fn with_pos(pos: glm::Vec2) -> Self {
         Self {
             pos: [pos.x, pos.y, 0., 0.],
             color: [0.0; 4],
@@ -21,7 +21,7 @@ impl Vert2D {
         }
     }
 
-    pub const fn with_color(color: &glm::Vec4) -> Self {
+    pub fn with_color(color: &glm::Vec4) -> Self {
         Self {
             pos: [0.; 4],
             color: [color.x, color.y, color.z, color.w],
@@ -29,7 +29,7 @@ impl Vert2D {
         }
     }
 
-    pub const fn with_uv(uv: glm::Vec2) -> Self {
+    pub fn with_uv(uv: glm::Vec2) -> Self {
         Self {
             pos: [0.; 4],
             color: [0.0; 4],
@@ -42,10 +42,21 @@ impl Vert2D {
 pub struct Color(pub glm::Vec4);
 
 impl Color {
-    pub const WHITE: Self = Self(glm::vec4(1., 1., 1., 1.));
-    pub const RED: Self = Self(glm::vec4(1., 0., 0., 1.));
-    pub const GREEN: Self = Self(glm::vec4(0., 1., 0., 1.));
-    pub const BLUE: Self = Self(glm::vec4(0., 0., 1., 1.));
+    pub fn white() -> Self {
+        Self(glm::vec4(1., 1., 1., 1.))
+    }
+    pub fn red() -> Self {
+        Self(glm::vec4(1., 0., 0., 1.))
+    }
+    pub fn green() -> Self {
+        Self(glm::vec4(0., 1., 0., 1.))
+    }
+    pub fn blue() -> Self {
+        Self(glm::vec4(0., 0., 1., 1.))
+    }
+    pub fn black() -> Self {
+        Self(glm::Vec4::zeros())
+    }
 
     pub const WHITE_RAW: [f32; 4] = [1., 1., 1., 1.];
     pub const RED_RAW: [f32; 4] = [1., 0., 0., 1.];
@@ -55,7 +66,19 @@ impl Color {
 
 impl Default for Color {
     fn default() -> Self {
-        Self::WHITE
+        Self::white()
+    }
+}
+
+impl From<Color> for sdl2::pixels::Color {
+    fn from(value: Color) -> Self {
+        let c = value.0;
+        sdl2::pixels::Color {
+            r: (c.x * 255.) as u8,
+            g: (c.y * 255.) as u8,
+            b: (c.z * 255.) as u8,
+            a: (c.w * 255.) as u8,
+        }
     }
 }
 

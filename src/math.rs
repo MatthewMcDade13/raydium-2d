@@ -167,12 +167,3 @@ impl Transform {
         &self.model
     }
 }
-
-impl Mul for Transform {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        let model = self.model * rhs.model;
-        Self { model, .. }
-    }
-}
