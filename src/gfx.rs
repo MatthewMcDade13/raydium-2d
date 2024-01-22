@@ -94,6 +94,31 @@ impl From<Color> for glm::Vec4 {
     }
 }
 
+pub const fn pack_rgb(r: u8, g: u8, b: u8) -> u32 {
+    pack_rgba(r, g, b, 255)
+}
+
+pub const fn pack_rgba(r: u8, g: u8, b: u8, a: u8) -> u32 {
+    let red = (r as u32) << 24;
+    let green = (g as u32) << 16;
+    let blue = (b as u32) << 8;
+    let alpha = a as u32;
+    red | green | blue | alpha
+}
+
+pub const fn unpack_rgba(color: u32) -> (u8, u8, u8, u8) {
+    let r = (color >> 24) as u8;
+    let g = (color >> 16) as u8;
+    let b = (color >> 8) as u8;
+    let a = color as u8;
+    (r, g, b, a)
+}
+
+pub const fn unpack_rgb(color: u32) -> (u8, u8, u8) {
+    let (r, g, b, _) = unpack_rgba(color);
+    (r, g, b)
+}
+
 use anyhow::*;
 use image::GenericImageView;
 use wgpu::Extent3d;

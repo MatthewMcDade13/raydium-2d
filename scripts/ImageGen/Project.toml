@@ -1,0 +1,9 @@
+name = "ImageGen"
+uuid = "d58dc6ed-6845-4ef2-9899-facf61b32c71"
+authors = ["MatthewMcDade13 <Matthew.McDade13@tuta.io>"]
+version = "0.1.0"
+
+[deps]
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+ImageView = "86fae568-95e7-573e-a6b2-d8a6b900c9ef"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
