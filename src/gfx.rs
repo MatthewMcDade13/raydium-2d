@@ -120,7 +120,13 @@ pub const fn unpack_rgb(color: u32) -> (u8, u8, u8) {
 }
 
 use anyhow::*;
-use image::GenericImageView;
+use image::{EncodableLayout, GenericImageView};
+use sdl2::{
+    pixels::PixelFormatEnum,
+    rect::Rect,
+    render::{Canvas, TextureCreator},
+    video::{Window, WindowContext},
+};
 use wgpu::Extent3d;
 
 pub enum TextureType {
@@ -203,5 +209,99 @@ impl Texture {
             sampler,
             size,
         })
+    }
+}
+
+/// Software rendered Texture Surface with an underlying SDL_Texture that is
+/// written to for drawing. all writing to texture happens when flush() is called
+///
+/// type: Streaming,
+/// format: RGB888 (With alpha padding),
+///
+pub struct SDLTextureBuf {
+    tex: sdl2::render::Texture,
+    pixels: image::ImageBuffer<image::Rgb<u8>, Vec<u8>>,
+}
+
+impl SDLTextureBuf {
+    pub fn new(tc: &TextureCreator<WindowContext>, w: u32, h: u32) -> anyhow::Result<Self> {
+        let tex = tc.create_texture_streaming(PixelFormatEnum::RGB888, w as u32, h as u32)?;
+        // let pixels = vec![0; w * h * 4];
+        let buf = image::DynamicImage::new_rgb8(w, h);
+        let pixels = buf.to_rgb8();
+        let s = Self { tex, pixels };
+        Ok(s)
+    }
+
+    #[inline]
+    pub fn pitch(&self) -> u32 {
+        self.width()
+    }
+
+    #[inline]
+    pub fn width(&self) -> u32 {
+        self.pixels.width()
+    }
+
+    #[inline]
+    pub fn height(&self) -> u32 {
+        self.pixels.height()
+    }
+
+    // pub const fn index(&self, x: usize, y: usize) -> usize {
+    //     let pitch = self.pitch() as usize;
+    //     y * pitch + x * 4
+    // }
+
+    // #[inline]
+    // pub fn byte_at(&self, x: usize, y: usize) -> u8 {
+    //     self.pixels[self.index(x, y)]
+    // }
+
+    // #[inline]
+    // pub fn pixel(&self, x: usize, y: usize) -> sdl2::pixels::Color {
+    //     let i = self.index(x, y);
+    //     let r = self.pixels[i];
+    //     let g = self.pixels[i + 1];
+    //     let b = self.pixels[i + 2];
+    //     sdl2::pixels::Color::RGB(r, g, b)
+    // }
+
+    pub fn flush(&mut self) -> anyhow::Result<()> {
+        // let bytes = self.pixels.as_flat_samples();
+        self.tex
+            .update(None, self.pixels.as_bytes(), self.pitch() as _)?;
+
+        Ok(())
+    }
+
+    pub fn put(&mut self, x: u32, y: u32, color: image::Rgb<u8>) {
+        self.pixels.put_pixel(x, y, color);
+        // let i = self.index(x, y);
+        //
+        // self.pixels[i] = color.r;
+        // self.pixels[i + 1] = color.g;
+        // self.pixels[i + 2] = color.b;
+    }
+
+    pub fn clear_black(&mut self) {
+        for p in self.pixels.iter_mut() {
+            *p = 0;
+        }
+
+        for x in 0..self.width() {
+            self.put(x, self.height() / 2, image::Rgb([255, 255, 255]));
+        }
+    }
+
+    pub fn draw(&self, canvas: &mut Canvas<Window>) -> anyhow::Result<()> {
+        canvas
+            .copy(
+                &self.tex, None,
+                None,
+                // Rect::new(0, 0, self.w as u32 / 2, self.h as u32 / 2),
+            )
+            .map_err(|e| anyhow!(e))?;
+        Ok(())
     }
 }

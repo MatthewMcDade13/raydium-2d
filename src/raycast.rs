@@ -1,6 +1,8 @@
 use std::ops::{Add, Mul};
 
 use anyhow::anyhow;
+use gfx::SDLTextureBuf;
+use image::Pixel;
 use nalgebra_glm as glm;
 use sdl2::{
     event::Event,
@@ -92,19 +94,16 @@ pub const WORLD_MAP: [[u8; MAP_W]; MAP_H] = [
     ],
 ];
 
-struct SdlContext {
+struct SDLContext {
     ctx: Sdl,
     canvas: Canvas<Window>,
     event_pump: EventPump,
 }
 
 pub struct RaycastRenderer {
-    sdl: SdlContext,
-    surface_size: glm::U32Vec2,
-    target: Texture,
+    sdl: SDLContext,
+    target: SDLTextureBuf,
     texture_creator: TextureCreator<WindowContext>,
-
-    pixels: Vec<u32>,
 }
 
 impl RaycastRenderer {
@@ -116,28 +115,22 @@ impl RaycastRenderer {
             .target_texture()
             .build()?;
 
-        let surface_size = glm::vec2(width, height);
-
         let texture_creator = canvas.texture_creator();
-        let target =
-            texture_creator.create_texture_streaming(PixelFormatEnum::RGB24, width, height)?;
 
-        let size = (width * height) as usize;
-        let pixels = Vec::with_capacity(size);
         let event_pump = ctx.event_pump().map_err(|e| anyhow!(e))?;
 
-        let sdl = SdlContext {
+        let sdl = SDLContext {
             ctx,
             canvas,
             event_pump,
         };
 
+        let target = SDLTextureBuf::new(&texture_creator, width, height)?;
+
         let s = Self {
             sdl,
-            surface_size,
             texture_creator,
             target,
-            pixels,
         };
         Ok(s)
     }
@@ -158,22 +151,14 @@ impl RaycastRenderer {
         };
         self.sdl.canvas.set_draw_color(color);
         self.sdl.canvas.clear();
-
-        self.target
-            .with_lock(None, |pxs: &mut [u8], _| {
-                for p in pxs {
-                    *p = 0;
-                }
-            })
-            .map_err(|e| anyhow!(e))?;
-
+        self.target.clear_black();
         Ok(())
     }
 
     fn raycast_screen(&mut self, player: &Player, cam: &Camera) -> anyhow::Result<()> {
-        let w = self.surface_size.x;
-        let h = self.surface_size.y;
-        for x in 0..self.surface_size.x {
+        let w = self.target.width();
+        let h = self.target.height();
+        for x in 0..w {
             let camx = (2 * x) as f32 / (w as f32) - 1.0;
             let ray_dir = player.dir + cam.plane * camx; // cam.plane.mul(camx) + player.dir;
 
@@ -268,22 +253,32 @@ impl RaycastRenderer {
             }
 
             // choose wall color
-            let mut color = match WORLD_MAP[map_pos.x as usize][map_pos.y as usize] {
-                1 => sdl2::pixels::Color::RED,
-                2 => sdl2::pixels::Color::GREEN,
-                3 => sdl2::pixels::Color::BLUE,
-                4 => sdl2::pixels::Color::WHITE,
-                _ => sdl2::pixels::Color::YELLOW,
+            let color = {
+                let x = map_pos.x as usize;
+                let y = map_pos.y as usize;
+                let mut col: [u8; 3] = match WORLD_MAP[x][y] {
+                    1 => [255, 0, 0],
+                    2 => [0, 255, 0],
+                    3 => [0, 0, 255],
+                    4 => [218, 112, 214], // Orchid
+                    _ => [255, 255, 255],
+                };
+
+                // give x and y side different brightness
+                if side == 1 {
+                    for c in col.iter_mut() {
+                        *c = *c / 2;
+                    }
+                    // let [r, g, b] = &mut color.to_rgb();
+                    // color. = color.0[0] / 2;
+                    // color.g = color.g / 2;
+                    // color.b = color.b / 2;
+                }
+
+                image::Rgb(col)
             };
 
-            // give x and y side different brightness
-            if side == 1 {
-                color.r = color.r / 2;
-                color.g = color.g / 2;
-                color.b = color.b / 2;
-            }
-
-            let _ = self.draw_vert_line(x as i32, draw_start, draw_end, &color)?;
+            let _ = self.draw_vert_line(x as i32, draw_start, draw_end, color)?;
         }
         Ok(())
     }
@@ -294,10 +289,10 @@ impl RaycastRenderer {
         x: i32,
         mut y1: i32,
         mut y2: i32,
-        color: &sdl2::pixels::Color,
+        color: image::Rgb<u8>,
     ) -> anyhow::Result<bool> {
-        let w = self.surface_size.x as i32;
-        let h = self.surface_size.y as i32;
+        let w = self.target.width() as i32;
+        let h = self.target.height() as i32;
 
         // swap y1 and y2
         if y2 < y1 {
@@ -320,41 +315,36 @@ impl RaycastRenderer {
             y2 = h as i32 - 1
         }
 
-        self.sdl.canvas.set_draw_color(*color);
-        self.sdl.canvas.draw_line(Point::new(x, y1), Point::new(x, y2));
+        // self.sdl.canvas.set_draw_color(*color);
+        // self.sdl
+        //     .canvas
+        //     .draw_line(Point::new(x, y1), Point::new(x, y2));
         // for y in y1..=y2 {
         //     self.sdl
         //         .canvas
         //         .draw_point(Point::new(x, y))
         //         .map_err(|e| anyhow!(e))?;
         // }
-
-        // self.target
-        //     .with_lock(None, |pixels: &mut [u8], pitch: usize| {
-        //         // let pixels: &mut [u32] = unsafe { std::mem::transmute(pixels) };
-        //         let pitch = pitch as i32;
         //
-        //         for y in y1..=y2 {
-        //             let bufindex = (y * pitch + x) as usize;
-        //             let (r, g, b) = color.rgb();
-        //             pixels[bufindex] = r;
-        //             pixels[bufindex + 1] = g; // 0xFFFFFFFF; // 0xFF0000FF; //color;
-        //             pixels[bufindex + 2] = b;
-        //             pixels[bufindex + 3] = 255;
-        //         }
-        //     })
-        // .map_err(|e| anyhow!(e))?;
+
+        let x = x as u32;
+        for y in y1..=y2 {
+            let y = y as u32;
+            self.target.put(x, y, color);
+        }
 
         Ok(true)
     }
 
     fn present(&mut self) -> anyhow::Result<()> {
+        self.target.flush()?;
+        self.target.draw(&mut self.sdl.canvas)?;
         // self.sdl
         //     .canvas
         //     .copy(
         //         &self.target,
         //         None,
-        //         Rect::new(0, 0, self.surface_size.x, self.surface_size.y),
+        //         None
         //     )
         //     .map_err(|e| anyhow!(e))?;
         self.sdl.canvas.present();
@@ -391,11 +381,11 @@ pub fn run() -> anyhow::Result<()> {
     let mut player = Player {
         pos: glm::vec2(22., 12.),
         dir: glm::vec2(-1., 0.),
-        speed: 5.,
+        speed: 25.,
     };
     let mut cam = Camera {
         plane: glm::vec2(0., 0.66),
-        speed: 3.,
+        speed: 35.,
     };
 
     let mut last_dt = std::time::Instant::now();
@@ -451,9 +441,10 @@ pub fn run() -> anyhow::Result<()> {
                     player.dir.x =
                         player.dir.x * (-rot_speed).cos() - player.dir.y * (-rot_speed).sin();
                     player.dir.y = old_dx * (-rot_speed).sin() + player.dir.y * (-rot_speed).cos();
-                    
+
                     let old_px = cam.plane.x;
-                    cam.plane.x = cam.plane.x * (-rot_speed).cos() - cam.plane.y * (-rot_speed).sin();
+                    cam.plane.x =
+                        cam.plane.x * (-rot_speed).cos() - cam.plane.y * (-rot_speed).sin();
                     cam.plane.y = old_px * (-rot_speed).sin() + cam.plane.y * (-rot_speed).cos();
                 }
 
@@ -467,7 +458,7 @@ pub fn run() -> anyhow::Result<()> {
                     player.dir.x =
                         player.dir.x * (rot_speed).cos() - player.dir.y * (rot_speed).sin();
                     player.dir.y = old_dx * (rot_speed).sin() + player.dir.y * (rot_speed).cos();
-                    
+
                     let old_px = cam.plane.x;
                     cam.plane.x = cam.plane.x * (rot_speed).cos() - cam.plane.y * (rot_speed).sin();
                     cam.plane.y = old_px * (rot_speed).sin() + cam.plane.y * (rot_speed).cos();
@@ -479,7 +470,7 @@ pub fn run() -> anyhow::Result<()> {
         }
 
         r.clear(None)?;
-        r.raycast_screen(&player, &cam)?;
+        // r.raycast_screen(&player, &cam)?;
         r.present()?;
     }
     Ok(())
